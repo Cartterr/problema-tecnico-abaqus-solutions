@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Portfolio Management Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .header h1 {
+            color: #1e3c72;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        .header .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .controls-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .control-group input, .control-group select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #1e3c72;
+            box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
+        }
+
+        .button-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+            color: white;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .btn-export {
+            background: #6f42c1;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e3c72;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .chart-type-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .chart-type-btn:hover {
+            background: #f8f9fa;
+        }
+        .chart-type-btn.active {
+            background: #1e3c72;
+            color: white;
+            border-color: #1e3c72;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: 400px;
+        }
+
+        .treemap-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .treemap-canvas {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: #fafafa;
+        }
+
+        .test-section {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .log-output {
+            background: #1a1a1a;
+            color: #00ff41;
+            border: 1px solid #333;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading.show {
+            display: flex;
+        }
+        .loading-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1e3c72;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: #1e3c72;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @media (max-width: 768px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            .button-toolbar {
+                justify-content: center;
+            }
+            .chart-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Panel de Gestión de Portafolios</h1>
+        <div class="subtitle">Análisis Financiero Avanzado y Seguimiento de Portafolios</div>
+    </div>
+
+    <div class="loading" id="loadingIndicator">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div class="loading-text">Cargando datos del portafolio...</div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <div class="controls-panel">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>📅 Fecha Inicio</label>
+                    <input type="date" id="startDate" value="2022-02-15">
+                </div>
+                <div class="control-group">
+                    <label>📅 Fecha Fin</label>
+                    <input type="date" id="endDate" value="2023-02-16">
+                </div>
+            </div>
+
+            <div class="button-toolbar">
+                <button class="btn btn-primary" onclick="updateCharts()">🔄 Actualizar Gráficos</button>
+                <button class="btn btn-secondary" onclick="resetView()">🔄 Reiniciar Vista</button>
+                <button class="btn btn-success" onclick="toggleTreemap()">🗺️ Ocultar Mapa</button>
+                <button class="btn btn-info" onclick="toggleFullscreen()">🖥️ Pantalla Completa</button>
+            </div>
+        </div>
+
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalValue">-</div>
+                <div class="stat-label">Valor Total del Portafolio</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="dailyReturn">-</div>
+                <div class="stat-label">Retorno Diario</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="volatility">-</div>
+                <div class="stat-label">Volatilidad</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="sharpeRatio">-</div>
+                <div class="stat-label">Ratio de Sharpe</div>
+            </div>
+        </div>
+
+        <div class="treemap-container" id="treemapContainer">
+            <div class="chart-header">
+                <div class="chart-title">🗺️ Mapa de Composición del Portafolio</div>
+                <div class="chart-controls">
+                    <button class="chart-type-btn active" onclick="setTreemapMode('weight')">Por Peso</button>
+                    <button class="chart-type-btn" onclick="setTreemapMode('value')">Por Valor</button>
+                </div>
+            </div>
+            <div class="treemap-canvas" id="treemapCanvas"></div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">💰 Valores del Portafolio en el Tiempo</div>
+                    <div class="chart-controls">
+                        <button class="chart-type-btn active" id="valueLineBtn" onclick="setValueChartType('line')">Líneas</button>
+                        <button class="chart-type-btn" id="valueAreaBtn" onclick="setValueChartType('area')">Área</button>
+                        <button class="chart-type-btn" id="valueBarBtn" onclick="setValueChartType('bar')">Barras</button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="valueChart"></canvas>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">⚖️ Distribución de Pesos del Portafolio</div>
+                    <div class="chart-controls">
+                        <button class="chart-type-btn active" id="weightStackedBtn" onclick="setWeightChartType('stacked')">Área Apilada</button>
+                        <button class="chart-type-btn" id="weightLineBtn" onclick="setWeightChartType('line')">Líneas</button>
+                        <button class="chart-type-btn" id="weightPieBtn" onclick="setWeightChartType('pie')">Gráfico Circular</button>
+                    </div>
+                </div>
+                <div class="chart-canvas">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="chart-header">
+                <div class="chart-title">🧪 Pruebas del Sistema y Diagnósticos</div>
+                <div class="button-toolbar">
+                    <button class="btn btn-success" onclick="runDataTest()">🔍 Probar Datos</button>
+                    <button class="btn btn-info" onclick="runApiTest()">🌐 Probar API</button>
+                    <button class="btn btn-warning" onclick="runPortTest()">🔌 Probar Puertos</button>
+                    <button class="btn btn-secondary" onclick="clearLogs()">🧹 Limpiar Logs</button>
+                </div>
+            </div>
+            <div id="testStatus"></div>
+            <div class="log-output" id="testLogs">Los logs del sistema aparecerán aquí...</div>
+        </div>
+    </div>
+
+    <script>
+        let valueChart, weightChart;
+        let currentValueChartType = 'line';
+        let currentWeightChartType = 'stacked';
+        let treemapVisible = true;
+        let treemapMode = 'weight';
+        let currentData = { values: [], weights: [] };
+
+        function initCharts() {
+            const valueCtx = document.getElementById('valueChart').getContext('2d');
+            const weightCtx = document.getElementById('weightChart').getContext('2d');
+
+            valueChart = new Chart(valueCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x'
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x'
+                            }
+                        },
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': $' + (context.parsed.y / 1000000).toFixed(2) + 'M';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day'
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(0) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            weightChart = new Chart(weightCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        zoom: {
+                            pan: {
+                                enabled: true,
+                                mode: 'x'
+                            },
+                            zoom: {
+                                wheel: {
+                                    enabled: true
+                                },
+                                pinch: {
+                                    enabled: true
+                                },
+                                mode: 'x'
+                            }
+                        },
+                        legend: {
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + (context.parsed.y * 100).toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        line: { fill: true }
+                    }
+                }
+            });
+        }
+
+        function showLoading(show = true) {
+            const loading = document.getElementById('loadingIndicator');
+            if (show) {
+                loading.classList.add('show');
+            } else {
+                loading.classList.remove('show');
+            }
+        }
+
+        async function updateCharts() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            showLoading(true);
+
+            try {
+                const [valuesResponse, weightsResponse] = await Promise.all([
+                    fetch(`/api/values/?fecha_inicio=${startDate}&fecha_fin=${endDate}`),
+                    fetch(`/api/weights/?fecha_inicio=${startDate}&fecha_fin=${endDate}`)
+                ]);
+
+                const valuesData = await valuesResponse.json();
+                const weightsData = await weightsResponse.json();
+
+                currentData = { values: valuesData, weights: weightsData };
+
+                updateValueChart(valuesData);
+                updateWeightChart(weightsData);
+                updateStats(valuesData);
+
+                if (treemapVisible && weightsData.length > 0) {
+                    updateTreemap(weightsData);
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                addLog(`❌ Error fetching data: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+                function updateValueChart(data) {
+            const portfolios = [...new Set(data.map(d => d.portfolio_name))];
+            const dates = [...new Set(data.map(d => d.date))].sort();
+
+            const datasets = portfolios.map((portfolio, index) => {
+                const portfolioData = data.filter(d => d.portfolio_name === portfolio);
+                const values = dates.map(date => {
+                    const item = portfolioData.find(d => d.date === date);
+                    return item ? parseFloat(item.total_value) : null;
+                });
+
+                // More distinct colors for portfolios
+                const colors = ['#ff4757', '#3742fa', '#2ed573', '#ffa502'];
+                const color = colors[index % colors.length];
+
+                return {
+                    label: portfolio,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: currentValueChartType === 'area' ? color + '30' : color + '10',
+                    fill: currentValueChartType === 'area',
+                    tension: 0.4
+                };
+            });
+
+            valueChart.data.labels = dates;
+            valueChart.data.datasets = datasets;
+            valueChart.options.scales.y.beginAtZero = currentValueChartType === 'bar';
+            valueChart.update();
+        }
+
+        function updateWeightChart(data) {
+            const portfolio1Data = data.filter(d => d.portfolio_name === 'Portfolio 1');
+            const assets = [...new Set(portfolio1Data.map(d => d.asset_name))];
+            const dates = [...new Set(portfolio1Data.map(d => d.date))].sort();
+
+            const colors = [
+                '#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff',
+                '#ff9f40', '#c9cbcf', '#ff6384', '#36a2eb', '#ffce56',
+                '#4bc0c0', '#9966ff', '#ff9f40', '#c9cbcf', '#ff6384',
+                '#36a2eb', '#ffce56'
+            ];
+
+            if (currentWeightChartType === 'pie') {
+                const latestDate = dates[dates.length - 1];
+                const latestData = portfolio1Data.filter(d => d.date === latestDate);
+
+                weightChart.destroy();
+                const weightCtx = document.getElementById('weightChart').getContext('2d');
+                weightChart = new Chart(weightCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: latestData.map(d => d.asset_name),
+                        datasets: [{
+                            data: latestData.map(d => parseFloat(d.weight)),
+                            backgroundColor: colors.slice(0, latestData.length)
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.label + ': ' + (context.parsed * 100).toFixed(2) + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                return;
+            }
+
+            const datasets = assets.map((asset, index) => {
+                const assetData = portfolio1Data.filter(d => d.asset_name === asset);
+                const weights = dates.map(date => {
+                    const item = assetData.find(d => d.date === date);
+                    return item ? parseFloat(item.weight) : 0;
+                });
+
+                return {
+                    label: asset,
+                    data: weights,
+                    backgroundColor: colors[index % colors.length],
+                    borderColor: colors[index % colors.length],
+                    fill: currentWeightChartType === 'stacked' ? (index === 0 ? 'origin' : '-1') : false
+                };
+            });
+
+            if (weightChart.config.type !== 'line') {
+                weightChart.destroy();
+                const weightCtx = document.getElementById('weightChart').getContext('2d');
+                weightChart = new Chart(weightCtx, {
+                    type: 'line',
+                    data: { labels: [], datasets: [] },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { type: 'time', time: { unit: 'day' } },
+                            y: {
+                                stacked: currentWeightChartType === 'stacked',
+                                max: currentWeightChartType === 'stacked' ? 1 : null,
+                                ticks: { callback: function(value) { return (value * 100).toFixed(1) + '%'; } }
+                            }
+                        }
+                    }
+                });
+            }
+
+            weightChart.data.labels = dates;
+            weightChart.data.datasets = datasets;
+            weightChart.options.scales.y.stacked = currentWeightChartType === 'stacked';
+            weightChart.update();
+        }
+
+        function updateStats(data) {
+            if (data.length === 0) return;
+
+            const portfolios = [...new Set(data.map(d => d.portfolio_name))];
+            const totalValue = portfolios.reduce((sum, portfolio) => {
+                const portfolioData = data.filter(d => d.portfolio_name === portfolio);
+                const latestValue = portfolioData[portfolioData.length - 1];
+                return sum + (latestValue ? parseFloat(latestValue.total_value) : 0);
+            }, 0);
+
+            document.getElementById('totalValue').textContent = '$' + (totalValue / 1000000).toFixed(1) + 'M';
+
+            const returns = calculateReturns(data);
+            document.getElementById('dailyReturn').textContent = (returns.daily * 100).toFixed(2) + '%';
+            document.getElementById('volatility').textContent = (returns.volatility * 100).toFixed(2) + '%';
+            document.getElementById('sharpeRatio').textContent = returns.sharpe.toFixed(2);
+        }
+
+        function calculateReturns(data) {
+            if (data.length < 2) return { daily: 0, volatility: 0, sharpe: 0 };
+
+            const values = data.map(d => parseFloat(d.total_value)).sort((a, b) => a - b);
+            const returns = [];
+
+            for (let i = 1; i < values.length; i++) {
+                returns.push((values[i] - values[i-1]) / values[i-1]);
+            }
+
+            const dailyReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+            const variance = returns.reduce((sum, r) => sum + Math.pow(r - dailyReturn, 2), 0) / returns.length;
+            const volatility = Math.sqrt(variance);
+            const sharpe = volatility > 0 ? dailyReturn / volatility : 0;
+
+            return { daily: dailyReturn, volatility: volatility, sharpe: sharpe };
+        }
+
+        function setValueChartType(type) {
+            currentValueChartType = type;
+            document.querySelectorAll('[id^="value"][id$="Btn"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`value${type.charAt(0).toUpperCase() + type.slice(1)}Btn`).classList.add('active');
+
+            if (currentData.values.length > 0) {
+                updateValueChart(currentData.values);
+            }
+        }
+
+        function setWeightChartType(type) {
+            currentWeightChartType = type;
+            document.querySelectorAll('[id^="weight"][id$="Btn"]').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`weight${type.charAt(0).toUpperCase() + type.slice(1)}Btn`).classList.add('active');
+
+            if (currentData.weights.length > 0) {
+                updateWeightChart(currentData.weights);
+            }
+        }
+
+                function toggleTreemap() {
+            treemapVisible = !treemapVisible;
+            const container = document.getElementById('treemapContainer');
+            const button = event.target;
+
+            if (treemapVisible) {
+                container.style.display = 'block';
+                button.textContent = '🗺️ Ocultar Mapa';
+                if (currentData.weights.length > 0) {
+                    updateTreemap(currentData.weights);
+                }
+            } else {
+                container.style.display = 'none';
+                button.textContent = '🗺️ Mostrar Mapa';
+            }
+        }
+
+        function setTreemapMode(mode) {
+            treemapMode = mode;
+            document.querySelectorAll('.treemap-container .chart-type-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (currentData.weights.length > 0) {
+                updateTreemap(currentData.weights);
+            }
+        }
+
+        function updateTreemap(data) {
+            const canvas = document.getElementById('treemapCanvas');
+            canvas.innerHTML = '';
+
+            const portfolio1Data = data.filter(d => d.portfolio_name === 'Portfolio 1');
+            const latestDate = Math.max(...portfolio1Data.map(d => new Date(d.date)));
+            const latestData = portfolio1Data.filter(d => new Date(d.date).getTime() === latestDate);
+
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            const svg = d3.select(canvas)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const root = d3.hierarchy({ children: latestData })
+                .sum(d => treemapMode === 'weight' ? parseFloat(d.weight) : parseFloat(d.amount || 0))
+                .sort((a, b) => b.value - a.value);
+
+            const treemap = d3.treemap()
+                .size([width, height])
+                .padding(2);
+
+            treemap(root);
+
+            const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+            const cell = svg.selectAll('g')
+                .data(root.leaves())
+                .enter().append('g')
+                .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+            cell.append('rect')
+                .attr('width', d => d.x1 - d.x0)
+                .attr('height', d => d.y1 - d.y0)
+                .attr('fill', d => color(d.data.asset_name))
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 2);
+
+            cell.append('text')
+                .attr('x', 4)
+                .attr('y', 20)
+                .attr('font-size', '12px')
+                .attr('font-weight', 'bold')
+                .attr('fill', '#fff')
+                .text(d => d.data.asset_name);
+
+            cell.append('text')
+                .attr('x', 4)
+                .attr('y', 35)
+                .attr('font-size', '10px')
+                .attr('fill', '#fff')
+                .text(d => treemapMode === 'weight'
+                    ? (parseFloat(d.data.weight) * 100).toFixed(1) + '%'
+                    : '$' + (parseFloat(d.data.amount || 0) / 1000000).toFixed(1) + 'M');
+        }
+
+        function resetView() {
+            if (valueChart.options.plugins.zoom) {
+                valueChart.resetZoom();
+            }
+            if (weightChart.options.plugins.zoom) {
+                weightChart.resetZoom();
+            }
+        }
+
+
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function addLog(message, type = 'info') {
+            const logs = document.getElementById('testLogs');
+            const timestamp = new Date().toLocaleTimeString();
+            logs.textContent += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function setStatus(message, type = 'info') {
+            const status = document.getElementById('testStatus');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+
+        function clearLogs() {
+            document.getElementById('testLogs').textContent = 'Los logs del sistema aparecerán aquí...';
+            document.getElementById('testStatus').textContent = '';
+        }
+
+        async function runDataTest() {
+            addLog('🔍 Probando integridad de datos...');
+            setStatus('Ejecutando pruebas de validación de datos...', 'info');
+            showLoading(true);
+            try {
+                const response = await fetch('/api/test/data/');
+                const data = await response.json();
+                if (data.success) {
+                    addLog(`✅ ${data.message}`);
+                    setStatus('Prueba de Datos: EXITOSA', 'success');
+                } else {
+                    addLog(`❌ ${data.message}`);
+                    setStatus('Prueba de Datos: FALLÓ', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`);
+                setStatus('Prueba de Datos: ERROR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function runApiTest() {
+            addLog('🌐 Probando endpoints de API...');
+            setStatus('Ejecutando pruebas de conectividad de API...', 'info');
+            showLoading(true);
+            try {
+                const testDate = '2022-05-15';
+                const [valuesResponse, weightsResponse] = await Promise.all([
+                    fetch(`/api/values/?fecha_inicio=${testDate}&fecha_fin=${testDate}`),
+                    fetch(`/api/weights/?fecha_inicio=${testDate}&fecha_fin=${testDate}`)
+                ]);
+
+                if (valuesResponse.ok && weightsResponse.ok) {
+                    const valuesData = await valuesResponse.json();
+                    const weightsData = await weightsResponse.json();
+                    addLog(`✅ API Valores: ${valuesData.length} registros`);
+                    addLog(`✅ API Pesos: ${weightsData.length} registros`);
+                    setStatus('Prueba de API: EXITOSA', 'success');
+                } else {
+                    addLog(`❌ Error de API: ${valuesResponse.status}, ${weightsResponse.status}`);
+                    setStatus('Prueba de API: FALLÓ', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`);
+                setStatus('Prueba de API: ERROR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function runPortTest() {
+            addLog('🔌 Probando disponibilidad de puertos...');
+            setStatus('Ejecutando pruebas de conectividad de puertos...', 'info');
+            showLoading(true);
+            try {
+                const response = await fetch('/api/test/ports/');
+                const data = await response.json();
+                addLog(`📊 ${data.message}`);
+                if (data.available_ports && data.available_ports.length > 0) {
+                    addLog(`✅ Puertos disponibles: ${data.available_ports.join(', ')}`);
+                    setStatus('Prueba de Puertos: EXITOSA', 'success');
+                } else {
+                    addLog(`⚠️ No hay puertos adicionales disponibles`);
+                    setStatus('Prueba de Puertos: ADVERTENCIA', 'info');
+                }
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`);
+                setStatus('Prueba de Puertos: ERROR', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            showLoading(true);
+            updateCharts();
+        });
+    </script>
+</body>
+</html>

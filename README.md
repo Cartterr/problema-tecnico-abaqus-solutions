@@ -192,6 +192,8 @@ portfolio_management/
 ## 📊 Screenshots
 
 ![1754891811245](image/README/1754891811245.png)
+<img width="1264" height="932" alt="image" src="https://github.com/user-attachments/assets/6c5ff393-aeee-40bc-8482-398443820830" />
+<img width="1255" height="284" alt="image" src="https://github.com/user-attachments/assets/e34427b3-cf31-4024-920e-384ca9ee717f" />
 
 
 ## 🔧 Solución de Problemas
